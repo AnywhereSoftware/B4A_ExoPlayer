@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="exoplayer.jar" sourcepath="com.zip">
+		<attributes>
+			<attribute name="javadoc_location" value="http://google.github.io/ExoPlayer/doc/reference/"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/android-sdk-windows7/platforms/android-23/android.jar" sourcepath="C:/android-sdk-windows7/sources/android-23"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/B4AObjects"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/B4AShared"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
