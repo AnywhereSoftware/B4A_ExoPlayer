@@ -2,10 +2,22 @@ package anywheresoftware.b4a.objects;
 
 import java.io.IOException;
 
-import com.google.android.exoplayer2.DefaultLoadControl;
+import android.content.pm.PackageManager.NameNotFoundException;
+import anywheresoftware.b4a.BA;
+import anywheresoftware.b4a.BA.DependsOn;
+import anywheresoftware.b4a.BA.Events;
+import anywheresoftware.b4a.BA.Hide;
+import anywheresoftware.b4a.BA.Permissions;
+import anywheresoftware.b4a.BA.ShortName;
+import anywheresoftware.b4a.BA.Version;
+import anywheresoftware.b4a.keywords.B4AApplication;
+import anywheresoftware.b4a.objects.collections.List;
+import anywheresoftware.b4a.objects.streams.File;
+
 import com.google.android.exoplayer2.ExoPlaybackException;
-import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.ExoPlayerFactory;
+import com.google.android.exoplayer2.PlaybackParameters;
+import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory;
@@ -13,39 +25,21 @@ import com.google.android.exoplayer2.source.ConcatenatingMediaSource;
 import com.google.android.exoplayer2.source.ExtractorMediaSource;
 import com.google.android.exoplayer2.source.LoopingMediaSource;
 import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.source.dash.DashMediaSource;
 import com.google.android.exoplayer2.source.dash.DefaultDashChunkSource;
 import com.google.android.exoplayer2.source.hls.HlsMediaSource;
 import com.google.android.exoplayer2.source.smoothstreaming.DefaultSsChunkSource;
 import com.google.android.exoplayer2.source.smoothstreaming.SsMediaSource;
-import com.google.android.exoplayer2.trackselection.AdaptiveVideoTrackSelection;
+import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.trackselection.TrackSelection;
-import com.google.android.exoplayer2.trackselection.TrackSelections;
+import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.trackselection.TrackSelector;
-import com.google.android.exoplayer2.trackselection.MappingTrackSelector.MappedTrackInfo;
-import com.google.android.exoplayer2.trackselection.TrackSelector.EventListener;
 import com.google.android.exoplayer2.upstream.BandwidthMeter;
-import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
-import com.google.android.exoplayer2.upstream.DefaultDataSource;
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
 import com.google.android.exoplayer2.util.Util;
-
-import android.content.pm.PackageManager.NameNotFoundException;
-import android.net.Uri;
-import android.os.Handler;
-import anywheresoftware.b4a.AbsObjectWrapper;
-import anywheresoftware.b4a.BA;
-import anywheresoftware.b4a.BA.DependsOn;
-import anywheresoftware.b4a.BA.Events;
-import anywheresoftware.b4a.BA.Hide;
-import anywheresoftware.b4a.BA.Permissions;
-import anywheresoftware.b4a.BA.Version;
-import anywheresoftware.b4a.BA.ShortName;
-import anywheresoftware.b4a.keywords.B4AApplication;
-import anywheresoftware.b4a.objects.collections.List;
-import anywheresoftware.b4a.objects.streams.File;
 
 /**
  * An advanced audio and video player. It supports more formats than MediaPlayer.
@@ -53,15 +47,16 @@ import anywheresoftware.b4a.objects.streams.File;
  *<b>Should be a process global variable.</b>
  */
 @ShortName("SimpleExoPlayer")
-@Version(1.01f)
-@DependsOn(values={"exoplayer.aar"})
+@Version(1.10f)
+@DependsOn(values={"exoplayer-core-r2.5.3.aar", "exoplayer-dash-r2.5.3.aar", "exoplayer-hls-r2.5.3.aar", 
+		"exoplayer-r2.5.3.aar", "exoplayer-smoothstreaming-r2.5.3.aar", "exoplayer-ui-r2.5.3.aar", "extension-rtmp-r2.5.3.aar"})
 @Permissions(values = {"android.permission.INTERNET"})
-@Events(values = {"Complete", "Error (Message As String)", "Ready"})
+@Events(values = {"Complete", "Error (Message As String)", "Ready", "TrackChanged"})
 public class SimpleExoPlayerWrapper  {
 	@Hide
 	public SimpleExoPlayer player;
 	@Hide
-	TrackSelector<MappedTrackInfo> trackSelector;
+	TrackSelector trackSelector;
 	private int currentState;
 	private String eventName;
 	/**
@@ -69,23 +64,14 @@ public class SimpleExoPlayerWrapper  {
 	 */
 	public void Initialize(final BA ba, String EventName) {
 		eventName = EventName.toLowerCase(BA.cul);
-		Handler mainHandler = new Handler();
 		BandwidthMeter bandwidthMeter = new DefaultBandwidthMeter();
 		TrackSelection.Factory videoTrackSelectionFactory =
-		    new AdaptiveVideoTrackSelection.Factory(bandwidthMeter);
+		    new AdaptiveTrackSelection.Factory(bandwidthMeter);
 		trackSelector =
-		    new DefaultTrackSelector(mainHandler, videoTrackSelectionFactory);
-		trackSelector.addListener(new EventListener<MappedTrackInfo>() {
-
-			@Override
-			public void onTrackSelectionsChanged(TrackSelections<? extends MappedTrackInfo> trackSelections) {
-				System.out.println("onTrackSelectionChanged: " + trackSelections);
-				
-			}
-			
-		});
-		player = ExoPlayerFactory.newSimpleInstance(BA.applicationContext, trackSelector, new DefaultLoadControl());
-		player.addListener(new ExoPlayer.EventListener() {
+		    new DefaultTrackSelector(videoTrackSelectionFactory);
+		
+		player = ExoPlayerFactory.newSimpleInstance(BA.applicationContext, trackSelector);
+		player.addListener(new Player.EventListener() {
 
 			@Override
 			public void onLoadingChanged(boolean isLoading) {
@@ -101,9 +87,9 @@ public class SimpleExoPlayerWrapper  {
 					int playbackState) {
 				if (playbackState != currentState) {
 					currentState = playbackState;
-					if (currentState == ExoPlayer.STATE_ENDED)
+					if (currentState == Player.STATE_ENDED)
 						ba.raiseEvent(SimpleExoPlayerWrapper.this, eventName + "_complete");
-					else if (currentState == ExoPlayer.STATE_READY)
+					else if (currentState == Player.STATE_READY)
 						ba.raiseEvent(SimpleExoPlayerWrapper.this, eventName + "_ready");
 				}
 			}
@@ -115,6 +101,24 @@ public class SimpleExoPlayerWrapper  {
 
 			@Override
 			public void onTimelineChanged(Timeline timeline, Object manifest) {
+			}
+
+			@Override
+			public void onPlaybackParametersChanged(
+					PlaybackParameters playbackParameters) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void onRepeatModeChanged(int repeatMode) {
+				
+			}
+
+			@Override
+			public void onTracksChanged(TrackGroupArray trackGroups,
+					TrackSelectionArray trackSelections) {
+				ba.raiseEventFromUI(SimpleExoPlayerWrapper.this, eventName + "_trackchanged");
 			}
 			
 		});
@@ -234,5 +238,11 @@ public class SimpleExoPlayerWrapper  {
 	}
 	public void setVolume(float f) {
 		player.setVolume(f);
+	}
+	/**
+	 * Returns the index of the window currently played.
+	 */
+	public int getCurrentWindowIndex() {
+		return player.getCurrentWindowIndex();
 	}
 }
